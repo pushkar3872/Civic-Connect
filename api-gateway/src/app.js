@@ -20,7 +20,7 @@ const createApp = (io) => {
 
   app.use(
     cors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: process.env.CORS_ORIGIN,
       credentials: true,
     }),
   );
@@ -49,25 +49,25 @@ const createApp = (io) => {
       pathRewrite: (path, req) => req.originalUrl,
       on: {
         proxyReq: (proxyReq, req) => {
-            if (req.user) {
-              proxyReq.setHeader('x-user-id', String(req.user.id || req.user.userId || ''));
-              proxyReq.setHeader('x-user-role', req.user.role || '');
-              if (req.user.email) {
-                proxyReq.setHeader('x-user-email', req.user.email);
-              }
+          if (req.user) {
+            proxyReq.setHeader('x-user-id', String(req.user.id || req.user.userId || ''));
+            proxyReq.setHeader('x-user-role', req.user.role || '');
+            if (req.user.email) {
+              proxyReq.setHeader('x-user-email', req.user.email);
             }
-            try {
-              console.log('[APIGateway] proxyReq - forwarding request', {
-                route,
-                target,
-                originalUrl: req.originalUrl,
-                hasAuthHeader: Boolean(req.headers.authorization),
-                forwardedUserId: req.user ? String(req.user.id || req.user.userId || '') : null,
-                forwardedUserRole: req.user ? req.user.role : null,
-              });
-            } catch (e) {
-              console.log('[APIGateway] proxyReq - forwarding (raw)');
-            }
+          }
+          try {
+            console.log('[APIGateway] proxyReq - forwarding request', {
+              route,
+              target,
+              originalUrl: req.originalUrl,
+              hasAuthHeader: Boolean(req.headers.authorization),
+              forwardedUserId: req.user ? String(req.user.id || req.user.userId || '') : null,
+              forwardedUserRole: req.user ? req.user.role : null,
+            });
+          } catch (e) {
+            console.log('[APIGateway] proxyReq - forwarding (raw)');
+          }
         },
         error: (err, req, res) => {
           if (!res.headersSent) {
