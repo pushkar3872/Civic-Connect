@@ -1,0 +1,206 @@
+services:
+  mongodb:
+    image: mongo:6.0
+    container_name: ccms-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - civic-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      target: production
+    container_name: ccms-auth-service
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - MONGODB_URI=mongodb://mongodb:27017/auth_db
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - JWT_REFRESH_SECRET=ccms_refresh_2026_secure_key_9281
+      - ACCESS_TOKEN_EXPIRY=15m
+      - REFRESH_TOKEN_EXPIRY=7d
+      - NODE_ENV=production
+      - CLIENT_URL=http://localhost:3000
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+      - INTERNAL_SERVICE_KEY=your_internal_service_key_here
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5005
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - civic-network
+
+  complaint-service:
+    build:
+      context: ./services/complaint-service
+      target: production
+    container_name: ccms-complaint-service
+    ports:
+      - "5002:5002"
+    environment:
+      - PORT=5002
+      - MONGODB_URI=mongodb://mongodb:27017/complaint_db
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5005
+      - WORKER_SERVICE_URL=http://worker-service:5003
+      - SOCKET_URL=http://api-gateway:5010
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+      - INTERNAL_SERVICE_KEY=your_internal_service_key_here
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - civic-network
+
+  worker-service:
+    build:
+      context: ./services/worker-service
+      target: production
+    container_name: ccms-worker-service
+    ports:
+      - "5003:5003"
+    environment:
+      - PORT=5003
+      - MONGODB_URI=mongodb://mongodb:27017/worker_db
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - COMPLAINT_SERVICE_URL=http://complaint-service:5002
+      - SOCKET_URL=http://api-gateway:5010
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+      - INTERNAL_SERVICE_KEY=your_internal_service_key_here
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5005
+      - CLIENT_URL=http://localhost:3000
+      - NODE_ENV=production
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - civic-network
+
+  file-service:
+    build:
+      context: ./services/file-service
+      target: production
+    container_name: ccms-file-service
+    ports:
+      - "5004:5004"
+    environment:
+      - PORT=5004
+      - CLOUDINARY_CLOUD_NAME=dgg69hd0j
+      - CLOUDINARY_API_KEY=233546296298174
+      - CLOUDINARY_API_SECRET=ZDxlhLBt_imD9Kav3YIJfJay3ws
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - CLIENT_URL=http://localhost:3000
+      - NODE_ENV=production
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+    networks:
+      - civic-network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      target: production
+    container_name: ccms-notification-service
+    ports:
+      - "5005:5005"
+    environment:
+      - PORT=5005
+      - MONGODB_URI=mongodb://mongodb:27017/notification_db
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - INTERNAL_SERVICE_KEY=your_internal_service_key_here
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=your_email@gmail.com
+      - SMTP_PASS=your_app_password
+      - EMAIL_FROM=CivicConnect <noreply@civicconnect.in>
+      - CLIENT_URL=http://localhost:3000
+      - NODE_ENV=production
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - civic-network
+
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      target: production
+    container_name: ccms-analytics-service
+    ports:
+      - "5006:5006"
+    environment:
+      - PORT=5006
+      - MONGODB_URI=mongodb://mongodb:27017/analytics_db
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - CLIENT_URL=http://localhost:3000
+      - NODE_ENV=production
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - civic-network
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      target: production
+    container_name: ccms-api-gateway
+    ports:
+      - "5010:5010"
+    environment:
+      - PORT=5010
+      - NODE_ENV=production
+      - JWT_SECRET=ccms_jwt_2026_secure_auth_key_8472
+      - CORS_ORIGIN=http://localhost:3000
+      - INTERNAL_SERVICE_SECRET=your-internal-service-secret
+      - AUTH_SERVICE_URL=http://auth-service:5001
+      - COMPLAINT_SERVICE_URL=http://complaint-service:5002
+      - WORKER_SERVICE_URL=http://worker-service:5003
+      - FILE_SERVICE_URL=http://file-service:5004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:5005
+      - ANALYTICS_SERVICE_URL=http://analytics-service:5006
+    depends_on:
+      - auth-service
+      - complaint-service
+      - worker-service
+      - file-service
+      - notification-service
+      - analytics-service
+    networks:
+      - civic-network
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://localhost:5010
+        - VITE_SOCKET_URL=http://localhost:5010
+        - VITE_GOOGLE_MAPS_API_KEY=AIzaSyCBa8Bfh3Myq3GGEzneCVoduDFwE9fzNEE
+    container_name: ccms-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - civic-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  civic-network:
+    driver: bridge

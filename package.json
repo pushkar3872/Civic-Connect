@@ -1,0 +1,17 @@
+{
+  "name": "civic-connect",
+  "private": true,
+  "scripts": {
+    "install:all": "cd api-gateway && npm install && cd ../services/auth-service && npm install && cd ../complaint-service && npm install && cd ../worker-service && npm install && cd ../file-service && npm install && cd ../notification-service && npm install && cd ../analytics-service && npm install && cd ../../frontend && npm install",
+    "dev:gateway": "cd api-gateway && npm run dev",
+    "dev:auth": "cd services/auth-service && npm run dev",
+    "dev:complaints": "cd services/complaint-service && npm run dev",
+    "dev:workers": "cd services/worker-service && npm run dev",
+    "dev:files": "cd services/file-service && npm run dev",
+    "dev:notifications": "cd services/notification-service && npm run dev",
+    "dev:analytics": "cd services/analytics-service && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
+  }
+}
